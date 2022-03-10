@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 from contextlib import contextmanager, nullcontext
+from multiprocessing import Pool
 
 import emcee as mc
 import numpy as np
@@ -378,7 +379,7 @@ class BayesGPR(GaussianProcessRegressor):
         n_desired_samples=100,
         n_burnin=0,
         n_thin=1,
-        n_walkers_per_thread=100,
+        n_walkers_per_thread=1000,
         progress=False,
         priors=None,
         warp_priors=None,
@@ -501,6 +502,8 @@ class BayesGPR(GaussianProcessRegressor):
             pos = [
                 theta + 1e-2 * self.random_state.randn(n_dim) for _ in range(n_walkers)
             ]
+
+        # with Pool() as pool:
         self._sampler = mc.EnsembleSampler(
             nwalkers=n_walkers,
             ndim=n_dim,
@@ -545,7 +548,7 @@ class BayesGPR(GaussianProcessRegressor):
         n_threads=1,
         n_desired_samples=100,
         n_burnin=10,
-        n_walkers_per_thread=100,
+        n_walkers_per_thread=1000,
         progress=True,
         priors=None,
         warp_priors=None,
