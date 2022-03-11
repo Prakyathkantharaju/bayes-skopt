@@ -1,6 +1,5 @@
 from collections.abc import Iterable
 from contextlib import contextmanager, nullcontext
-from multiprocessing import Pool
 
 import emcee as mc
 import numpy as np
@@ -11,6 +10,8 @@ from sklearn.utils import check_random_state
 from skopt.learning import GaussianProcessRegressor
 from skopt.learning.gaussian_process.gpr import _param_for_white_kernel_in_Sum
 from skopt.learning.gaussian_process.kernels import WhiteKernel
+
+from pathos.multiprocessing import ProcessingPool as Pool
 
 from .utils import geometric_median, guess_priors, validate_zeroone
 
@@ -379,7 +380,7 @@ class BayesGPR(GaussianProcessRegressor):
         n_desired_samples=100,
         n_burnin=0,
         n_thin=1,
-        n_walkers_per_thread=1000,
+        n_walkers_per_thread=100,
         progress=False,
         priors=None,
         warp_priors=None,
@@ -503,17 +504,18 @@ class BayesGPR(GaussianProcessRegressor):
                 theta + 1e-2 * self.random_state.randn(n_dim) for _ in range(n_walkers)
             ]
 
-        # with Pool() as pool:
+        rng = np.random.RandomState(
+            self.random_state.randint(0, np.iinfo(np.int32).max)
+        )
+        # with Pool(n_threads) as pool:
         self._sampler = mc.EnsembleSampler(
             nwalkers=n_walkers,
             ndim=n_dim,
             log_prob_fn=self._log_prob_fn,
             kwargs=dict(priors=priors, warp_priors=warp_priors),
             threads=n_threads,
+            # pool=pool,
             **kwargs
-        )
-        rng = np.random.RandomState(
-            self.random_state.randint(0, np.iinfo(np.int32).max)
         )
         self._sampler.random_state = rng.get_state()
         pos, prob, state = self._sampler.run_mcmc(pos, n_samples, progress=progress)
@@ -548,7 +550,7 @@ class BayesGPR(GaussianProcessRegressor):
         n_threads=1,
         n_desired_samples=100,
         n_burnin=10,
-        n_walkers_per_thread=1000,
+        n_walkers_per_thread=100,
         progress=True,
         priors=None,
         warp_priors=None,
